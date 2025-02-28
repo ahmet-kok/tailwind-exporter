@@ -1,8 +1,13 @@
 // State variables
 let isSelecting = false;
-let copyOnClick = false;
+<<<<<<< HEAD
+=======
+let isRealTimeMode = false;
+>>>>>>> parent of fc460e1 (Refactor extension architecture and improve user experience)
 let highlightedElement = null;
 let highlightOverlay = null;
+let lastProcessedElement = null;
+let throttleTimeout = null;
 
 // Log for debugging - check if content script is loaded
 console.log('Tailwind Exporter content script loaded successfully');
@@ -13,34 +18,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.action === 'activateSelector') {
     console.log('Activating element selector');
-    copyOnClick = request.copyOnClick || false;
-    try {
-      toggleElementSelector(true);
-      console.log('Element selector activated successfully');
-      sendResponse({ success: true });
-    } catch (error) {
-      console.error('Error activating selector:', error);
-      sendResponse({ success: false, error: error.message });
-    }
-    return true;
+<<<<<<< HEAD
+    toggleElementSelector(true);
+    sendResponse({ success: true });
+  }
+  return true;
+=======
+    isRealTimeMode = request.realTimeMode || false;
+    toggleElementSelector(true);
+    sendResponse({ success: true });
   }
   
   if (request.action === 'deactivateSelector') {
     console.log('Deactivating element selector');
-    try {
-      toggleElementSelector(false);
-      console.log('Element selector deactivated successfully');
-      sendResponse({ success: true });
-    } catch (error) {
-      console.error('Error deactivating selector:', error);
-      sendResponse({ success: false, error: error.message });
-    }
-    return true;
+    toggleElementSelector(false);
+    sendResponse({ success: true });
   }
   
-  // Always send a response, even if we didn't handle the action
-  sendResponse({ success: false, error: 'Unknown action' });
   return true; // Keep the messaging channel open
+>>>>>>> parent of fc460e1 (Refactor extension architecture and improve user experience)
 });
 
 // Toggle element selector mode
@@ -50,16 +46,9 @@ function toggleElementSelector(activate) {
   
   if (activate) {
     document.body.style.cursor = 'crosshair';
-    
-    // Remove event listeners first to avoid duplicates
-    document.removeEventListener('mousemove', handleMouseMove, true);
-    document.removeEventListener('click', handleClick, true);
-    document.removeEventListener('keydown', handleKeyDown, true);
-    
-    // Add event listeners with capture=true to ensure they work
-    document.addEventListener('mousemove', handleMouseMove, true);
-    document.addEventListener('click', handleClick, true);
-    document.addEventListener('keydown', handleKeyDown, true);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKeyDown);
     
     // Create highlight overlay if it doesn't exist
     if (!highlightOverlay) {
@@ -67,29 +56,24 @@ function toggleElementSelector(activate) {
       highlightOverlay = document.createElement('div');
       highlightOverlay.id = 'tailwind-exporter-highlight';
       document.body.appendChild(highlightOverlay);
-    } else {
-      highlightOverlay.style.display = 'block';
     }
-    
-    // Add class to body to indicate selection mode
-    document.body.classList.add('tailwind-exporter-selecting');
-    
-    console.log('Element selector mode activated');
   } else {
     document.body.style.cursor = '';
-    document.removeEventListener('mousemove', handleMouseMove, true);
-    document.removeEventListener('click', handleClick, true);
-    document.removeEventListener('keydown', handleKeyDown, true);
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('click', handleClick);
+    document.removeEventListener('keydown', handleKeyDown);
     
     // Remove highlight overlay
     if (highlightOverlay) {
       highlightOverlay.style.display = 'none';
     }
+<<<<<<< HEAD
+=======
     
-    // Remove class from body
-    document.body.classList.remove('tailwind-exporter-selecting');
-    
-    console.log('Element selector mode deactivated');
+    // Reset state
+    lastProcessedElement = null;
+    isRealTimeMode = false;
+>>>>>>> parent of fc460e1 (Refactor extension architecture and improve user experience)
   }
 }
 
@@ -101,29 +85,45 @@ function handleMouseMove(e) {
   e.stopPropagation();
   
   // Get element under cursor (ignoring our overlay)
-  const previousElement = highlightedElement;
   highlightedElement = document.elementFromPoint(e.clientX, e.clientY);
   
   // Skip our own elements
-  if (highlightedElement && (
-      highlightedElement.id === 'tailwind-exporter-highlight' ||
-      highlightedElement.classList.contains('tailwind-exporter-notification')
-  )) {
+  if (highlightedElement && highlightedElement.id === 'tailwind-exporter-highlight') {
     return;
-  }
-  
-  // Remove hover class from previous element
-  if (previousElement && previousElement !== highlightedElement) {
-    previousElement.classList.remove('tailwind-exporter-hovering');
-  }
-  
-  // Add hover class to current element
-  if (highlightedElement) {
-    highlightedElement.classList.add('tailwind-exporter-hovering');
   }
   
   // Update highlight overlay position
   updateHighlight();
+  
+<<<<<<< HEAD
+=======
+  // In real-time mode, send the Tailwind CSS to the popup
+  if (isRealTimeMode && highlightedElement) {
+    // Throttle the updates to avoid performance issues
+    if (throttleTimeout) {
+      clearTimeout(throttleTimeout);
+    }
+    
+    throttleTimeout = setTimeout(() => {
+      // Only process if the element has changed
+      if (highlightedElement !== lastProcessedElement) {
+        lastProcessedElement = highlightedElement;
+        const tailwindCSS = convertToTailwind(highlightedElement);
+        
+        // Send the Tailwind CSS back to the popup
+        chrome.runtime.sendMessage({
+          action: 'updateTailwindCSS',
+          tailwindCSS: tailwindCSS
+        });
+      }
+    }, 200); // Throttle to once every 200ms
+  }
+  
+>>>>>>> parent of fc460e1 (Refactor extension architecture and improve user experience)
+  // For debugging purposes
+  if (highlightedElement) {
+    console.log('Hovering over:', highlightedElement.tagName);
+  }
 }
 
 // Update the highlight overlay position and size
@@ -146,113 +146,41 @@ function updateHighlight() {
 
 // Handle click to select an element
 function handleClick(e) {
-  console.log('Click event in content script', isSelecting);
   if (!isSelecting) return;
   
   e.preventDefault();
   e.stopPropagation();
   
   if (highlightedElement) {
-    console.log('Element selected:', highlightedElement);
-    // Remove hover class
-    highlightedElement.classList.remove('tailwind-exporter-hovering');
+    const tailwindCSS = convertToTailwind(highlightedElement);
     
-    try {
-      const tailwindCSS = convertToTailwind(highlightedElement);
-      console.log('Converted to Tailwind CSS:', tailwindCSS);
-      
-      if (copyOnClick) {
-        // Create a temporary textarea element to copy text
-        const textarea = document.createElement('textarea');
-        textarea.value = tailwindCSS;
-        textarea.setAttribute('readonly', '');
-        textarea.style.position = 'absolute';
-        textarea.style.left = '-9999px';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        
-        // Show a notification
-        showCopyNotification('Copied to clipboard!');
-        
-        // Notify the popup that selection is complete
-        console.log('Sending selectionComplete message to popup');
-        chrome.runtime.sendMessage({
-          action: 'selectionComplete'
-        }).catch(err => {
-          // Ignore errors if popup is closed
-          console.log('Could not notify popup of selection: ', err);
-        });
-      } else {
-        // Send the Tailwind CSS back to the popup
-        console.log('Sending showTailwindCSS message to popup');
-        chrome.runtime.sendMessage({
-          action: 'showTailwindCSS',
-          tailwindCSS: tailwindCSS
-        });
-      }
-    } catch (error) {
-      console.error('Error processing selected element:', error);
-      showCopyNotification('Error: ' + (error.message || 'Failed to process element'));
-    }
+    // Send the Tailwind CSS back to the popup
+    chrome.runtime.sendMessage({
+      action: 'showTailwindCSS',
+      tailwindCSS: tailwindCSS
+    });
     
+<<<<<<< HEAD
     // Exit selection mode
     toggleElementSelector(false);
+=======
+    // If not in real-time mode, exit selection mode
+    if (!isRealTimeMode) {
+      toggleElementSelector(false);
+    }
+>>>>>>> parent of fc460e1 (Refactor extension architecture and improve user experience)
   }
-}
-
-// Show a temporary notification
-function showCopyNotification(message) {
-  const notification = document.createElement('div');
-  notification.textContent = message;
-  notification.className = 'tailwind-exporter-notification';
-  
-  // Add a small info text for the element with children
-  if (message === 'Copied to clipboard!') {
-    const childInfo = document.createElement('div');
-    childInfo.textContent = 'Element and its children copied with Tailwind CSS';
-    childInfo.style.fontSize = '11px';
-    childInfo.style.marginTop = '4px';
-    childInfo.style.opacity = '0.8';
-    notification.appendChild(childInfo);
-  }
-  
-  document.body.appendChild(notification);
-  
-  setTimeout(() => {
-    notification.style.opacity = '0';
-    notification.style.transition = 'opacity 0.5s ease';
-    setTimeout(() => {
-      document.body.removeChild(notification);
-    }, 500);
-  }, 2000);
 }
 
 // Handle Escape key to cancel selection
 function handleKeyDown(e) {
   if (e.key === 'Escape' && isSelecting) {
-    console.log('Escape key pressed, deactivating selector');
     toggleElementSelector(false);
-    
-    // Notify the popup
-    chrome.runtime.sendMessage({
-      action: 'selectionComplete',
-      canceled: true
-    }).catch(err => {
-      // Ignore errors if popup is closed
-      console.log('Could not notify popup of cancellation: ', err);
-    });
   }
 }
 
 // Convert element's computed styles to Tailwind CSS classes
-function convertToTailwind(element, depth = 0) {
-  // Skip script and style tags
-  if (element.tagName && (element.tagName.toLowerCase() === 'script' || element.tagName.toLowerCase() === 'style')) {
-    return '';
-  }
-  
+function convertToTailwind(element) {
   const computedStyle = window.getComputedStyle(element);
   const tailwindClasses = [];
   
@@ -466,75 +394,8 @@ function convertToTailwind(element, depth = 0) {
   // Generate the HTML tag with Tailwind classes
   const tagName = element.tagName.toLowerCase();
   
-  // Process child elements recursively
-  let childrenContent = '';
-  const maxChildren = 10; // Limit the number of children to process to avoid huge outputs
-  let childCount = 0;
-  
-  if (element.children && element.children.length > 0) {
-    // Add indentation for nested elements
-    const indent = '  '.repeat(depth + 1);
-    
-    // Process each child element
-    for (let i = 0; i < element.children.length && childCount < maxChildren; i++) {
-      const child = element.children[i];
-      
-      // Skip invisible or utility elements
-      if (computedStyle.display === 'none' || 
-          computedStyle.visibility === 'hidden' ||
-          child.id === 'tailwind-exporter-highlight' ||
-          child.classList.contains('tailwind-exporter-notification')) {
-        continue;
-      }
-      
-      const childContent = convertToTailwind(child, depth + 1);
-      if (childContent) {
-        childrenContent += indent + childContent + '\n';
-        childCount++;
-      }
-    }
-    
-    // If we reached the max children limit, add a comment
-    if (element.children.length > maxChildren) {
-      childrenContent += indent + '<!-- Additional children omitted for brevity -->\n';
-    }
-  }
-  
-  // Get text content directly in this element (not in children)
-  let textContent = '';
-  if (element.childNodes) {
-    for (let i = 0; i < element.childNodes.length; i++) {
-      const node = element.childNodes[i];
-      if (node.nodeType === Node.TEXT_NODE) {
-        const text = node.textContent.trim();
-        if (text) {
-          textContent += text + ' ';
-        }
-      }
-    }
-  }
-  
-  // Truncate long text
-  if (textContent.length > 50) {
-    textContent = textContent.substring(0, 47) + '...';
-  }
-  
-  // Generate output with the proper indentation
-  const indent = '  '.repeat(depth);
-  let output = `<${tagName} class="${tailwindClasses.join(' ')}">${textContent ? '\n' + indent + '  ' + textContent : ''}`;
-  
-  if (childrenContent) {
-    output += childrenContent ? '\n' + childrenContent + indent : '';
-    output += `</${tagName}>`;
-  } else {
-    // Self-closing tags or tags without children
-    if (tagName === 'img' || tagName === 'input' || tagName === 'br' || tagName === 'hr') {
-      output += ' />';
-    } else {
-      output += textContent ? '\n' + indent : '';
-      output += `</${tagName}>`;
-    }
-  }
-  
-  return output;
+  // Generate Tailwind markup
+  return `<${tagName} class="${tailwindClasses.join(' ')}">
+  ${element.innerHTML ? '...' : ''}
+</${tagName}>`;
 } 

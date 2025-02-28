@@ -1,15 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
   console.log('Popup loaded successfully');
   
-  // Get DOM elements
   const activateButton = document.getElementById('activateSelector');
   const resultContainer = document.getElementById('result-container');
   const resultElement = document.getElementById('result');
   const copyButton = document.getElementById('copyToClipboard');
   const clearButton = document.getElementById('clearResult');
+<<<<<<< HEAD
+=======
   const closeButton = document.getElementById('closePopup');
   const container = document.querySelector('.container');
-  const statusElement = document.getElementById('status');
   let isSelectingActive = false;
   
   // Set up the current active tab
@@ -33,166 +33,149 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize by getting the active tab
   getActiveTab();
   
-  // Function to show status messages
-  const showStatus = (message, type = '') => {
-    statusElement.textContent = message;
-    statusElement.className = ''; // Reset classes
-    if (type) statusElement.classList.add(type);
-    statusElement.classList.remove('hidden');
+  // Close the popup window
+  closeButton.addEventListener('click', () => {
+    console.log('Close button clicked');
     
-    // Automatically hide success messages after some time
-    if (type === 'success') {
-      setTimeout(() => {
-        statusElement.classList.add('hidden');
-      }, 2000);
+    // If selection is active, deactivate it first
+    if (isSelectingActive && currentTabId) {
+      chrome.tabs.sendMessage(currentTabId, { 
+        action: 'deactivateSelector' 
+      }).catch(err => console.error('Error deactivating selector:', err));
     }
-  };
-  
-  // Close the popup window (note: this will only work if we have a background script)
-  if (closeButton) {
-    closeButton.addEventListener('click', () => {
-      console.log('Close button clicked');
-      
-      // If selection is active, deactivate it first
-      if (isSelectingActive && currentTabId) {
-        chrome.tabs.sendMessage(currentTabId, { 
-          action: 'deactivateSelector' 
-        }).catch(err => console.error('Error deactivating selector:', err));
-      }
-      
-      // Close the popup if possible
-      window.close();
+    
+    // Tell the background script to close the popup
+    chrome.runtime.sendMessage({
+      action: 'closePopup'
     });
-  }
+  });
+>>>>>>> parent of fc460e1 (Refactor extension architecture and improve user experience)
 
   // Activate element selector on the current page
   activateButton.addEventListener('click', async () => {
-    console.log('Activate button clicked');
+    console.log('Select Element button clicked');
     
     try {
+<<<<<<< HEAD
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      console.log('Current tab:', tab.id);
+      
+      // Tell the content script to activate the selector
+      chrome.tabs.sendMessage(tab.id, { action: 'activateSelector' }, (response) => {
+        console.log('Response from content script:', response);
+        if (chrome.runtime.lastError) {
+          console.error('Error sending message to content script:', chrome.runtime.lastError);
+        }
+      });
+      
+      // Close the popup to make selection easier
+      window.close();
+=======
       const tab = await getActiveTab();
       if (!tab) {
-        showStatus('Error: Could not get active tab', 'error');
+        console.error('No active tab found');
         return;
       }
       
-      currentTabId = tab.id;
+      console.log('Current tab:', tab.id);
       
-      // Toggle selection mode
+      // Toggle the selection state
       isSelectingActive = !isSelectingActive;
       
+      // Update button text based on state
       if (isSelectingActive) {
-        // Activate mode
-        activateButton.textContent = 'Cancel Selection';
+        activateButton.textContent = 'Stop Selection';
+        activateButton.style.backgroundColor = '#dc2626'; // Red color
         activateButton.classList.add('active');
-        activateButton.setAttribute('data-active', 'true');
+        container.classList.add('real-time-mode');
         
-        // Show status message
-        showStatus('Element selection activated');
+        // Clear previous results when starting new selection
+        resultElement.textContent = 'Hover over elements to see Tailwind CSS...';
+        resultContainer.classList.remove('hidden');
+        
+        // Add status message
+        const statusElem = document.createElement('div');
+        statusElem.className = 'status';
+        statusElem.textContent = 'Real-time mode activated';
+        statusElem.id = 'status-message';
+        if (!document.getElementById('status-message')) {
+          resultContainer.appendChild(statusElem);
+        }
         
         // Tell the content script to activate the selector
-        console.log('Sending activateSelector message to tab', tab.id);
         chrome.tabs.sendMessage(tab.id, { 
-          action: 'activateSelector',
-          copyOnClick: true
-        }).then(response => {
-          console.log('Received response from content script:', response);
-          if (!response || !response.success) {
-            throw new Error('Content script did not acknowledge the command');
+          action: 'activateSelector', 
+          realTimeMode: true 
+        }, (response) => {
+          console.log('Response from content script:', response);
+          if (chrome.runtime.lastError) {
+            console.error('Error sending message to content script:', chrome.runtime.lastError);
           }
-        }).catch(err => {
-          console.error('Error sending message to content script:', err);
-          showStatus('Error: Could not activate selector. Try reloading the page.', 'error');
-          isSelectingActive = false;
-          activateButton.textContent = 'Select Element';
-          activateButton.classList.remove('active');
         });
       } else {
-        // Deactivate mode
         activateButton.textContent = 'Select Element';
+        activateButton.style.backgroundColor = '#2563eb'; // Blue color
         activateButton.classList.remove('active');
-        activateButton.removeAttribute('data-active');
+        container.classList.remove('real-time-mode');
         
-        // Update status message
-        showStatus('Selection mode canceled');
+        // Remove status message
+        const statusElem = document.getElementById('status-message');
+        if (statusElem) {
+          statusElem.remove();
+        }
         
         // Tell the content script to deactivate the selector
         chrome.tabs.sendMessage(tab.id, { 
-          action: 'deactivateSelector'
+          action: 'deactivateSelector' 
         });
-        
-        // Hide status after a delay
-        setTimeout(() => {
-          statusElement.classList.add('hidden');
-        }, 2000);
       }
+>>>>>>> parent of fc460e1 (Refactor extension architecture and improve user experience)
     } catch (error) {
-      console.error('Error toggling selector:', error);
-      showStatus('Error: Could not activate selector', 'error');
+      console.error('Error in activateButton click handler:', error);
     }
   });
 
   // Copy Tailwind CSS to clipboard
-  if (copyButton) {
-    copyButton.addEventListener('click', () => {
-      const tailwindCSS = resultElement.textContent;
-      navigator.clipboard.writeText(tailwindCSS)
-        .then(() => {
-          copyButton.textContent = 'Copied!';
-          setTimeout(() => {
-            copyButton.textContent = 'Copy to Clipboard';
-          }, 2000);
-        })
-        .catch(err => {
-          console.error('Failed to copy text: ', err);
-        });
-    });
-  }
+  copyButton.addEventListener('click', () => {
+    const tailwindCSS = resultElement.textContent;
+    navigator.clipboard.writeText(tailwindCSS)
+      .then(() => {
+        copyButton.textContent = 'Copied!';
+        setTimeout(() => {
+          copyButton.textContent = 'Copy to Clipboard';
+        }, 2000);
+      })
+      .catch(err => {
+        console.error('Failed to copy text: ', err);
+      });
+  });
 
   // Clear the result
-  if (clearButton) {
-    clearButton.addEventListener('click', () => {
-      resultElement.textContent = '';
-      resultContainer.classList.add('hidden');
-    });
-  }
+  clearButton.addEventListener('click', () => {
+    resultElement.textContent = '';
+    resultContainer.classList.add('hidden');
+  });
 
   // Listen for messages from content script
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log('Received message in popup:', request);
-    
     if (request.action === 'showTailwindCSS') {
-      if (resultElement && resultContainer) {
-        resultElement.textContent = request.tailwindCSS;
-        resultContainer.classList.remove('hidden');
-      }
+      resultElement.textContent = request.tailwindCSS;
+      resultContainer.classList.remove('hidden');
       sendResponse({ success: true });
     }
+<<<<<<< HEAD
+=======
     
     // Handler for real-time updates
     if (request.action === 'updateTailwindCSS') {
-      if (resultElement && resultContainer) {
-        if (resultContainer.classList.contains('hidden')) {
-          resultContainer.classList.remove('hidden');
-        }
-        resultElement.textContent = request.tailwindCSS;
+      if (resultContainer.classList.contains('hidden')) {
+        resultContainer.classList.remove('hidden');
       }
-      sendResponse({ success: true });
-    }
-    
-    if (request.action === 'selectionComplete') {
-      // Reset button state
-      activateButton.textContent = 'Select Element';
-      activateButton.classList.remove('active');
-      activateButton.removeAttribute('data-active');
-      isSelectingActive = false;
-      
-      // Update status
-      showStatus('Element and children copied to clipboard!', 'success');
-      
+      resultElement.textContent = request.tailwindCSS;
       sendResponse({ success: true });
     }
     
     return true; // Keep the message channel open
+>>>>>>> parent of fc460e1 (Refactor extension architecture and improve user experience)
   });
 }); 
