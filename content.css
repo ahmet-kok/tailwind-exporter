@@ -1,0 +1,19 @@
+/* Ensure the cursor changes when in selection mode */
+.tailwind-exporter-selecting * {
+  cursor: crosshair !important;
+}
+
+/* Add a hint when hovering over selectable elements */
+.tailwind-exporter-hovering {
+  outline: 2px dashed #2563eb !important;
+  outline-offset: -2px;
+  background-color: rgba(37, 99, 235, 0.1) !important;
+  cursor: pointer !important;
+}
+
+/* Style for highlight overlay */
+#tailwind-exporter-highlight {
+  pointer-events: none;
+  box-sizing: border-box;
+  z-index: 2147483647;
+} 

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tailwind Exporter</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Tailwind Exporter</h1>
+    <p>Click the button below to activate the selector tool, then click on any element to get its Tailwind CSS equivalent.</p>
+    <button id="activateSelector">Select Element</button>
+    <div id="result-container" class="hidden">
+      <h2>Tailwind CSS</h2>
+      <div id="result" class="code-block"></div>
+      <div class="button-group">
+        <button id="copyToClipboard">Copy to Clipboard</button>
+        <button id="clearResult">Clear</button>
+      </div>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html> 
