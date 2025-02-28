@@ -10,17 +10,12 @@
   <div class="container">
     <div class="header">
       <h1>Tailwind Exporter</h1>
-      <button id="closePopup" class="close-button">&times;</button>
+      <div class="line"></div>
     </div>
-    <p>Click the button below to activate the selector tool, then hover over any element to see its Tailwind CSS equivalent.</p>
-    <button id="activateSelector">Select Element</button>
-    <div id="result-container" class="hidden">
-      <h2>Tailwind CSS</h2>
-      <div id="result" class="code-block"></div>
-      <div class="button-group">
-        <button id="copyToClipboard">Copy to Clipboard</button>
-        <button id="clearResult">Clear</button>
-      </div>
+    <div class="content">
+      <p>Click to select any element and copy its Tailwind CSS equivalent.</p>
+      <button id="activateSelector">Select Element</button>
+      <div id="status" class="hidden">Element selection activated</div>
     </div>
   </div>
   <script src="popup.js"></script>

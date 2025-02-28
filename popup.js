@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const clearButton = document.getElementById('clearResult');
   const closeButton = document.getElementById('closePopup');
   const container = document.querySelector('.container');
+  const statusElement = document.getElementById('status');
   let isSelectingActive = false;
   
   // Set up the current active tab
@@ -32,126 +33,163 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize by getting the active tab
   getActiveTab();
   
-  // Close the popup window
-  closeButton.addEventListener('click', () => {
-    console.log('Close button clicked');
+  // Function to show status messages
+  const showStatus = (message, type = '') => {
+    statusElement.textContent = message;
+    statusElement.className = ''; // Reset classes
+    if (type) statusElement.classList.add(type);
+    statusElement.classList.remove('hidden');
     
-    // If selection is active, deactivate it first
-    if (isSelectingActive && currentTabId) {
-      chrome.tabs.sendMessage(currentTabId, { 
-        action: 'deactivateSelector' 
-      }).catch(err => console.error('Error deactivating selector:', err));
+    // Automatically hide success messages after some time
+    if (type === 'success') {
+      setTimeout(() => {
+        statusElement.classList.add('hidden');
+      }, 2000);
     }
-    
-    // Tell the background script to close the popup
-    chrome.runtime.sendMessage({
-      action: 'closePopup'
+  };
+  
+  // Close the popup window (note: this will only work if we have a background script)
+  if (closeButton) {
+    closeButton.addEventListener('click', () => {
+      console.log('Close button clicked');
+      
+      // If selection is active, deactivate it first
+      if (isSelectingActive && currentTabId) {
+        chrome.tabs.sendMessage(currentTabId, { 
+          action: 'deactivateSelector' 
+        }).catch(err => console.error('Error deactivating selector:', err));
+      }
+      
+      // Close the popup if possible
+      window.close();
     });
-  });
+  }
 
   // Activate element selector on the current page
   activateButton.addEventListener('click', async () => {
-    console.log('Select Element button clicked');
+    console.log('Activate button clicked');
     
     try {
       const tab = await getActiveTab();
       if (!tab) {
-        console.error('No active tab found');
+        showStatus('Error: Could not get active tab', 'error');
         return;
       }
       
-      console.log('Current tab:', tab.id);
+      currentTabId = tab.id;
       
-      // Toggle the selection state
+      // Toggle selection mode
       isSelectingActive = !isSelectingActive;
       
-      // Update button text based on state
       if (isSelectingActive) {
-        activateButton.textContent = 'Stop Selection';
-        activateButton.style.backgroundColor = '#dc2626'; // Red color
+        // Activate mode
+        activateButton.textContent = 'Cancel Selection';
         activateButton.classList.add('active');
-        container.classList.add('real-time-mode');
+        activateButton.setAttribute('data-active', 'true');
         
-        // Clear previous results when starting new selection
-        resultElement.textContent = 'Hover over elements to see Tailwind CSS...';
-        resultContainer.classList.remove('hidden');
-        
-        // Add status message
-        const statusElem = document.createElement('div');
-        statusElem.className = 'status';
-        statusElem.textContent = 'Real-time mode activated';
-        statusElem.id = 'status-message';
-        if (!document.getElementById('status-message')) {
-          resultContainer.appendChild(statusElem);
-        }
+        // Show status message
+        showStatus('Element selection activated');
         
         // Tell the content script to activate the selector
+        console.log('Sending activateSelector message to tab', tab.id);
         chrome.tabs.sendMessage(tab.id, { 
-          action: 'activateSelector', 
-          realTimeMode: true 
-        }, (response) => {
-          console.log('Response from content script:', response);
-          if (chrome.runtime.lastError) {
-            console.error('Error sending message to content script:', chrome.runtime.lastError);
+          action: 'activateSelector',
+          copyOnClick: true
+        }).then(response => {
+          console.log('Received response from content script:', response);
+          if (!response || !response.success) {
+            throw new Error('Content script did not acknowledge the command');
           }
+        }).catch(err => {
+          console.error('Error sending message to content script:', err);
+          showStatus('Error: Could not activate selector. Try reloading the page.', 'error');
+          isSelectingActive = false;
+          activateButton.textContent = 'Select Element';
+          activateButton.classList.remove('active');
         });
       } else {
+        // Deactivate mode
         activateButton.textContent = 'Select Element';
-        activateButton.style.backgroundColor = '#2563eb'; // Blue color
         activateButton.classList.remove('active');
-        container.classList.remove('real-time-mode');
+        activateButton.removeAttribute('data-active');
         
-        // Remove status message
-        const statusElem = document.getElementById('status-message');
-        if (statusElem) {
-          statusElem.remove();
-        }
+        // Update status message
+        showStatus('Selection mode canceled');
         
         // Tell the content script to deactivate the selector
         chrome.tabs.sendMessage(tab.id, { 
-          action: 'deactivateSelector' 
+          action: 'deactivateSelector'
         });
+        
+        // Hide status after a delay
+        setTimeout(() => {
+          statusElement.classList.add('hidden');
+        }, 2000);
       }
     } catch (error) {
-      console.error('Error in activateButton click handler:', error);
+      console.error('Error toggling selector:', error);
+      showStatus('Error: Could not activate selector', 'error');
     }
   });
 
   // Copy Tailwind CSS to clipboard
-  copyButton.addEventListener('click', () => {
-    const tailwindCSS = resultElement.textContent;
-    navigator.clipboard.writeText(tailwindCSS)
-      .then(() => {
-        copyButton.textContent = 'Copied!';
-        setTimeout(() => {
-          copyButton.textContent = 'Copy to Clipboard';
-        }, 2000);
-      })
-      .catch(err => {
-        console.error('Failed to copy text: ', err);
-      });
-  });
+  if (copyButton) {
+    copyButton.addEventListener('click', () => {
+      const tailwindCSS = resultElement.textContent;
+      navigator.clipboard.writeText(tailwindCSS)
+        .then(() => {
+          copyButton.textContent = 'Copied!';
+          setTimeout(() => {
+            copyButton.textContent = 'Copy to Clipboard';
+          }, 2000);
+        })
+        .catch(err => {
+          console.error('Failed to copy text: ', err);
+        });
+    });
+  }
 
   // Clear the result
-  clearButton.addEventListener('click', () => {
-    resultElement.textContent = '';
-    resultContainer.classList.add('hidden');
-  });
+  if (clearButton) {
+    clearButton.addEventListener('click', () => {
+      resultElement.textContent = '';
+      resultContainer.classList.add('hidden');
+    });
+  }
 
   // Listen for messages from content script
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log('Received message in popup:', request);
+    
     if (request.action === 'showTailwindCSS') {
-      resultElement.textContent = request.tailwindCSS;
-      resultContainer.classList.remove('hidden');
+      if (resultElement && resultContainer) {
+        resultElement.textContent = request.tailwindCSS;
+        resultContainer.classList.remove('hidden');
+      }
       sendResponse({ success: true });
     }
     
     // Handler for real-time updates
     if (request.action === 'updateTailwindCSS') {
-      if (resultContainer.classList.contains('hidden')) {
-        resultContainer.classList.remove('hidden');
+      if (resultElement && resultContainer) {
+        if (resultContainer.classList.contains('hidden')) {
+          resultContainer.classList.remove('hidden');
+        }
+        resultElement.textContent = request.tailwindCSS;
       }
-      resultElement.textContent = request.tailwindCSS;
+      sendResponse({ success: true });
+    }
+    
+    if (request.action === 'selectionComplete') {
+      // Reset button state
+      activateButton.textContent = 'Select Element';
+      activateButton.classList.remove('active');
+      activateButton.removeAttribute('data-active');
+      isSelectingActive = false;
+      
+      // Update status
+      showStatus('Element and children copied to clipboard!', 'success');
+      
       sendResponse({ success: true });
     }
     
