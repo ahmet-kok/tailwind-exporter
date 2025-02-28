@@ -16,10 +16,39 @@ body {
   padding: 1rem;
 }
 
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.75rem;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.close-button:hover {
+  background-color: #ef4444;
+  color: white;
+}
+
 h1 {
   font-size: 1.5rem;
   font-weight: 600;
-  margin-bottom: 0.75rem;
   color: #0f172a;
 }
 
@@ -28,6 +57,9 @@ h2 {
   font-weight: 500;
   margin-bottom: 0.5rem;
   color: #0f172a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 p {
@@ -44,7 +76,7 @@ button {
   border-radius: 0.375rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 button:hover {
@@ -54,6 +86,16 @@ button:hover {
 #activateSelector {
   width: 100%;
   margin-bottom: 1rem;
+  font-size: 1rem;
+  padding: 0.75rem;
+}
+
+#activateSelector.active {
+  background-color: #dc2626;
+}
+
+#activateSelector.active:hover {
+  background-color: #b91c1c;
 }
 
 .hidden {
@@ -68,8 +110,28 @@ button:hover {
   font-family: 'Courier New', Courier, monospace;
   white-space: pre-wrap;
   word-break: break-all;
-  max-height: 200px;
+  max-height: 250px;
   overflow-y: auto;
+  font-size: 0.875rem;
+  border-left: 3px solid #2563eb;
+  transition: all 0.3s ease;
+}
+
+.real-time-mode .code-block {
+  background-color: #dbeafe;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 5px rgba(37, 99, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
 }
 
 .button-group {
@@ -87,4 +149,15 @@ button:hover {
 
 #clearResult:hover {
   background-color: #dc2626;
+}
+
+.status {
+  color: #059669;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #d1fae5;
+  border-radius: 0.25rem;
+  text-align: center;
 } 

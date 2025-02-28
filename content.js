@@ -1,7 +1,10 @@
 // State variables
 let isSelecting = false;
+let isRealTimeMode = false;
 let highlightedElement = null;
 let highlightOverlay = null;
+let lastProcessedElement = null;
+let throttleTimeout = null;
 
 // Log for debugging - check if content script is loaded
 console.log('Tailwind Exporter content script loaded successfully');
@@ -12,10 +15,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.action === 'activateSelector') {
     console.log('Activating element selector');
+    isRealTimeMode = request.realTimeMode || false;
     toggleElementSelector(true);
     sendResponse({ success: true });
   }
-  return true;
+  
+  if (request.action === 'deactivateSelector') {
+    console.log('Deactivating element selector');
+    toggleElementSelector(false);
+    sendResponse({ success: true });
+  }
+  
+  return true; // Keep the messaging channel open
 });
 
 // Toggle element selector mode
@@ -35,6 +46,8 @@ function toggleElementSelector(activate) {
       highlightOverlay = document.createElement('div');
       highlightOverlay.id = 'tailwind-exporter-highlight';
       document.body.appendChild(highlightOverlay);
+    } else {
+      highlightOverlay.style.display = 'block';
     }
   } else {
     document.body.style.cursor = '';
@@ -46,6 +59,10 @@ function toggleElementSelector(activate) {
     if (highlightOverlay) {
       highlightOverlay.style.display = 'none';
     }
+    
+    // Reset state
+    lastProcessedElement = null;
+    isRealTimeMode = false;
   }
 }
 
@@ -66,6 +83,28 @@ function handleMouseMove(e) {
   
   // Update highlight overlay position
   updateHighlight();
+  
+  // In real-time mode, send the Tailwind CSS to the popup
+  if (isRealTimeMode && highlightedElement) {
+    // Throttle the updates to avoid performance issues
+    if (throttleTimeout) {
+      clearTimeout(throttleTimeout);
+    }
+    
+    throttleTimeout = setTimeout(() => {
+      // Only process if the element has changed
+      if (highlightedElement !== lastProcessedElement) {
+        lastProcessedElement = highlightedElement;
+        const tailwindCSS = convertToTailwind(highlightedElement);
+        
+        // Send the Tailwind CSS back to the popup
+        chrome.runtime.sendMessage({
+          action: 'updateTailwindCSS',
+          tailwindCSS: tailwindCSS
+        });
+      }
+    }, 200); // Throttle to once every 200ms
+  }
   
   // For debugging purposes
   if (highlightedElement) {
@@ -107,8 +146,10 @@ function handleClick(e) {
       tailwindCSS: tailwindCSS
     });
     
-    // Exit selection mode
-    toggleElementSelector(false);
+    // If not in real-time mode, exit selection mode
+    if (!isRealTimeMode) {
+      toggleElementSelector(false);
+    }
   }
 }
 
